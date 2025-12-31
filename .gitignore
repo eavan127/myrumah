@@ -1,0 +1,125 @@
+############################
+# Dependencies
+############################
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+############################
+# Expo
+############################
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+############################
+# React Native
+############################
+.metro-health-check*
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+############################
+# Android
+############################
+android/.gradle/
+android/.idea/
+android/build/
+android/app/build/
+android/local.properties
+android/*.iml
+android/captures/
+android/keystores/
+
+############################
+# iOS
+############################
+ios/Pods/
+ios/build/
+ios/DerivedData/
+ios/*.xcworkspace
+ios/*.xcodeproj/project.xcworkspace
+ios/*.xcodeproj/xcuserdata/
+ios/.symlinks/
+ios/.idea/
+
+############################
+# Generated native folders
+############################
+/ios
+/android
+
+############################
+# TypeScript
+############################
+*.tsbuildinfo
+
+############################
+# Environment variables
+############################
+.env
+.env.*
+.env*.local
+
+############################
+# Logs
+############################
+logs/
+*.log
+
+############################
+# Debug
+############################
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+############################
+# macOS
+############################
+.DS_Store
+.AppleDouble
+.LSOverride
+
+############################
+# Windows
+############################
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+############################
+# Linux
+############################
+*~
+
+############################
+# IDEs & Editors
+############################
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.iml
+
+############################
+# Cache / Temp
+############################
+.cache/
+.tmp/
+.temp/
+coverage/
+
+############################
+# Build output
+############################
+build/
+out/
+*.obj
