@@ -157,53 +157,240 @@ app.get('/', (req, res) => {
     res.json({ message: '🪑 Furniture Backend API is running!' });
 });
 
-// ==================== FURNITURE ROUTES ====================
-app.get('/api/furniture', async (req, res) => {
+// ==================== PRODUCT ROUTES ====================
+app.get('/api/products', async (req, res) => {
     try {
         const furniture = await prisma.furniture.findMany();
-        res.json(furniture);
+        // Map database fields to frontend expected fields
+        res.json(furniture.map(f => ({
+            ...f,
+            title: f.name, // Frontend expects 'title', DB has 'name'
+            merchantName: 'Season Flagship',
+            tags: [f.category] // Frontend expects 'tags' array, DB has 'category' string
+        })));
     } catch (error) {
         console.error('Error:', error);
-        res.status(500).json({ error: 'Failed to fetch furniture' });
+        res.status(500).json({ error: 'Failed to fetch products' });
     }
 });
 
-app.get('/api/furniture/:id', async (req, res) => {
+app.get('/api/products/:id', async (req, res) => {
     try {
         const furniture = await prisma.furniture.findUnique({
             where: { id: req.params.id }
         });
-        res.json(furniture);
+
+        if (!furniture) {
+            return res.status(404).json({ error: 'Product not found' });
+        }
+
+        res.json({
+            ...furniture,
+            title: furniture.name,
+            merchantName: 'Season Flagship',
+            tags: [furniture.category] // Frontend expects 'tags' array
+        });
     } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch furniture' });
+        res.status(500).json({ error: 'Failed to fetch product' });
     }
 });
 
-app.post('/api/furniture', async (req, res) => {
+app.post('/api/products', async (req, res) => {
     try {
+        // Adapter for frontend 'title' -> backend 'name'
+        const { title, ...rest } = req.body;
         const furniture = await prisma.furniture.create({
-            data: req.body
+            data: {
+                ...rest,
+                name: title || rest.name
+            }
         });
         res.json(furniture);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to create furniture' });
+        res.status(500).json({ error: 'Failed to create product' });
     }
+});
+
+// ==================== MERCHANT ROUTES (Mock) ====================
+// In a real app, this would come from a Merchant table
+const MOCK_MERCHANTS = [
+    {
+        id: '1',
+        name: 'Season Flagship',
+        logoUri: 'https://images.unsplash.com/photo-1599305445671-ac291c95aaa9?q=80&w=2069&auto=format&fit=crop',
+        description: 'Premium furniture for the modern home.',
+        address: '123 Luxury Lane, Design District',
+        rating: 4.8
+    },
+    {
+        id: '2',
+        name: 'Nordic Living',
+        logoUri: 'https://images.unsplash.com/photo-1513506003011-3b03c8b61c91?q=80&w=2070&auto=format&fit=crop',
+        description: 'Authentic Scandinavian minimalism.',
+        address: '456 Fjord Ave, Nordic Park',
+        rating: 4.9
+    }
+];
+
+app.get('/api/merchants', (req, res) => {
+    res.json(MOCK_MERCHANTS);
+});
+
+app.get('/api/merchants/:id', (req, res) => {
+    const merchant = MOCK_MERCHANTS.find(m => m.id === req.params.id);
+    if (!merchant) return res.status(404).json({ error: 'Merchant not found' });
+    res.json(merchant);
 });
 
 // ==================== CART ROUTES (Protected) ====================
-app.get('/api/cart/:userId', authenticateToken, async (req: any, res) => {
+
+// Helper to calculate total
+const calculateTotal = (items: any[]) => {
+    return items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+};
+
+// Get User's Cart
+app.get('/api/cart', authenticateToken, async (req: any, res) => {
     try {
-        // Ensure user can only access their own cart
-        if (req.user.userId !== parseInt(req.params.userId)) {
-            return res.status(403).json({ error: 'Access denied' });
+        const userId = String(req.user.userId);
+
+        let cart = await prisma.cart.findFirst({
+            where: { userId }
+        });
+
+        // Create cart if doesn't exist
+        if (!cart) {
+            cart = await prisma.cart.create({
+                data: {
+                    userId,
+                    items: [],
+                    total: 0
+                }
+            });
         }
 
-        const cart = await prisma.cart.findFirst({
-            where: { userId: req.params.userId }
-        });
         res.json(cart);
     } catch (error) {
+        console.error('Get Cart Error:', error);
         res.status(500).json({ error: 'Failed to fetch cart' });
+    }
+});
+
+// Add Item to Cart
+app.post('/api/cart/add', authenticateToken, async (req: any, res) => {
+    try {
+        const userId = String(req.user.userId);
+        const { productId, quantity } = req.body;
+
+        // Fetch product details for price/info
+        const product = await prisma.furniture.findUnique({
+            where: { id: productId }
+        });
+
+        if (!product) {
+            return res.status(404).json({ error: 'Product not found' });
+        }
+
+        let cart = await prisma.cart.findFirst({ where: { userId } });
+
+        if (!cart) {
+            cart = await prisma.cart.create({
+                data: { userId, items: [], total: 0 }
+            });
+        }
+
+        let items = cart.items as any[] || [];
+        const existingItemIndex = items.findIndex((item: any) => item.id === productId);
+
+        if (existingItemIndex > -1) {
+            items[existingItemIndex].quantity += quantity;
+        } else {
+            items.push({
+                id: product.id,
+                title: product.name,
+                price: product.price,
+                imageUri: product.imageUrl, // Map DB 'imageUrl' to frontend 'imageUri'
+                merchantId: '1', // Hardcoded for now, or add to DB schema
+                quantity: quantity
+            });
+        }
+
+        const updatedTotal = calculateTotal(items);
+
+        const updatedCart = await prisma.cart.update({
+            where: { id: cart.id },
+            data: {
+                items: items,
+                total: updatedTotal
+            }
+        });
+
+        res.json(updatedCart);
+    } catch (error) {
+        console.error('Add to Cart Error:', error);
+        res.status(500).json({ error: 'Failed to add item to cart' });
+    }
+});
+
+// Update Item Quantity
+app.post('/api/cart/update', authenticateToken, async (req: any, res) => {
+    try {
+        const userId = String(req.user.userId);
+        const { productId, quantity } = req.body;
+
+        const cart = await prisma.cart.findFirst({ where: { userId } });
+        if (!cart) return res.status(404).json({ error: 'Cart not found' });
+
+        let items = cart.items as any[] || [];
+        const itemIndex = items.findIndex((item: any) => item.id === productId);
+
+        if (itemIndex > -1) {
+            if (quantity > 0) {
+                items[itemIndex].quantity = quantity;
+            } else {
+                // Remove if quantity is 0 or less
+                items.splice(itemIndex, 1);
+            }
+
+            const updatedCart = await prisma.cart.update({
+                where: { id: cart.id },
+                data: {
+                    items: items,
+                    total: calculateTotal(items)
+                }
+            });
+            return res.json(updatedCart);
+        }
+
+        res.status(404).json({ error: 'Item not found in cart' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to update cart' });
+    }
+});
+
+// Remove Item from Cart
+app.delete('/api/cart/:productId', authenticateToken, async (req: any, res) => {
+    try {
+        const userId = String(req.user.userId);
+        const { productId } = req.params;
+
+        const cart = await prisma.cart.findFirst({ where: { userId } });
+        if (!cart) return res.status(404).json({ error: 'Cart not found' });
+
+        let items = cart.items as any[] || [];
+        const newItems = items.filter((item: any) => item.id !== productId);
+
+        const updatedCart = await prisma.cart.update({
+            where: { id: cart.id },
+            data: {
+                items: newItems,
+                total: calculateTotal(newItems)
+            }
+        });
+
+        res.json(updatedCart);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to remove item' });
     }
 });
 
@@ -213,9 +400,20 @@ app.post('/api/orders', authenticateToken, async (req: any, res) => {
         const order = await prisma.order.create({
             data: {
                 ...req.body,
-                userId: String(req.user.userId) // Use authenticated user's ID
+                userId: String(req.user.userId)
             }
         });
+
+        // Optional: Clear cart after order
+        const userId = String(req.user.userId);
+        const cart = await prisma.cart.findFirst({ where: { userId } });
+        if (cart) {
+            await prisma.cart.update({
+                where: { id: cart.id },
+                data: { items: [], total: 0 }
+            });
+        }
+
         res.json(order);
     } catch (error) {
         res.status(500).json({ error: 'Failed to create order' });

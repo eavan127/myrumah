@@ -44,15 +44,15 @@ export default function ProfileScreen() {
                 {/* User Card */}
                 <View style={styles.userCard}>
                     <Image
-                        source={{ uri: 'https://randomuser.me/api/portraits/men/32.jpg' }}
+                        source={{ uri: 'https://randomuser.me/api/portraits/lego/1.jpg' }}
                         style={styles.avatar}
                     />
                     <View style={styles.userInfo}>
-                        <Text style={styles.userName}>Kim Hong</Text>
-                        <Text style={styles.userEmail}>kimmy@season.com</Text>
+                        <Text style={styles.userName}>{user?.email ? user.email.split('@')[0] : 'Guest'}</Text>
+                        <Text style={styles.userEmail}>{user?.email || 'Not logged in'}</Text>
                         <View style={styles.membershipBadge}>
                             <FontAwesome name="star" size={10} color="#fff" />
-                            <Text style={styles.membershipText}>Season Member</Text>
+                            <Text style={styles.membershipText}>MyRumah Member</Text>
                         </View>
                     </View>
                 </View>
@@ -60,17 +60,17 @@ export default function ProfileScreen() {
                 {/* Stats */}
                 <View style={styles.statsRow}>
                     <View style={styles.statItem}>
-                        <Text style={styles.statValue}>12</Text>
+                        <Text style={styles.statValue}>-</Text>
                         <Text style={styles.statLabel}>Orders</Text>
                     </View>
                     <View style={styles.statDivider} />
                     <View style={styles.statItem}>
-                        <Text style={styles.statValue}>5</Text>
+                        <Text style={styles.statValue}>-</Text>
                         <Text style={styles.statLabel}>Designs</Text>
                     </View>
                     <View style={styles.statDivider} />
                     <View style={styles.statItem}>
-                        <Text style={styles.statValue}>8</Text>
+                        <Text style={styles.statValue}>0</Text>
                         <Text style={styles.statLabel}>Wishlist</Text>
                     </View>
                 </View>
@@ -130,7 +130,7 @@ export default function ProfileScreen() {
                 </TouchableOpacity>
 
                 <View style={styles.footer}>
-                    <Text style={styles.version}>Season App v1.0.0</Text>
+                    <Text style={styles.version}>MyRumah App v1.0.0</Text>
                 </View>
             </ScrollView>
         </SafeAreaView>
@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
     userCard: { flexDirection: 'row', alignItems: 'center', padding: 20, backgroundColor: '#f9f9f9', marginHorizontal: 20, borderRadius: 20, marginBottom: 20 },
     avatar: { width: 70, height: 70, borderRadius: 35, marginRight: 15 },
     userInfo: { flex: 1 },
-    userName: { fontSize: 20, fontWeight: 'bold', marginBottom: 4 },
+    userName: { fontSize: 20, fontWeight: 'bold', marginBottom: 4, textTransform: 'capitalize' },
     userEmail: { fontSize: 14, color: '#666', marginBottom: 8 },
     membershipBadge: { flexDirection: 'row', backgroundColor: '#111', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, alignSelf: 'flex-start', alignItems: 'center', gap: 4 },
     membershipText: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
