@@ -412,9 +412,14 @@ app.post('/api/orders', authenticateToken, async (req: any, res) => {
         const userId = String(req.user.userId);
         const { shippingAddress, paymentDetails } = req.body;
 
+        console.log('Creating order for userId:', userId);
+
         // Get user's cart
         const cart = await prisma.cart.findFirst({ where: { userId } });
+        console.log('Found cart:', cart);
+
         if (!cart || (cart.items as any[]).length === 0) {
+            console.log('Cart is empty or not found for userId:', userId);
             return res.status(400).json({ error: 'Cart is empty' });
         }
 
