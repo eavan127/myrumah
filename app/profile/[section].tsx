@@ -5,14 +5,6 @@ import React, { useState } from 'react';
 import { FlatList, Image, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-/* --- Mock Data & Components --- */
-
-const MOCK_ORDERS = [
-    { id: 'ORD-7723', date: 'Dec 12, 2024', total: '$1,299', status: 'Delivered', items: 'Strandmon Chair, Billy Bookcase' },
-    { id: 'ORD-7611', date: 'Nov 28, 2024', total: '$89', status: 'Processing', items: 'Hektar Lamp' },
-    { id: 'ORD-5590', date: 'Oct 15, 2024', total: '$450', status: 'Delivered', items: 'Rug, Throw Pillows' },
-];
-
 const MOCK_ROOMS = [
     { id: '1', uri: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?q=80&w=1974' },
     { id: '2', uri: 'https://images.unsplash.com/photo-1616594039964-40891a909d99?q=80&w=1974' },
@@ -27,29 +19,92 @@ const MOCK_PAYMENTS = [
 
 /* --- Section Views --- */
 
-const OrdersView = () => (
-    <FlatList
-        data={MOCK_ORDERS}
-        keyExtractor={item => item.id}
-        contentContainerStyle={{ padding: 20 }}
-        renderItem={({ item }) => (
-            <View style={styles.card}>
-                <View style={[styles.row, { marginBottom: 10 }]}>
-                    <Text style={styles.orderId}>{item.id}</Text>
-                    <View style={[styles.statusBadge, item.status === 'Processing' ? { backgroundColor: '#fff3cd' } : { backgroundColor: '#d4edda' }]}>
-                        <Text style={[styles.statusText, item.status === 'Processing' ? { color: '#856404' } : { color: '#155724' }]}>{item.status}</Text>
-                    </View>
-                </View>
-                <Text style={styles.orderDate}>{item.date}</Text>
-                <Text style={styles.orderItems}>{item.items}</Text>
-                <View style={[styles.row, { marginTop: 15, borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 10 }]}>
-                    <Text style={styles.orderTotalLabel}>Total</Text>
-                    <Text style={styles.orderTotal}>{item.total}</Text>
-                </View>
+// Status badge colors based on calculated status
+const getStatusStyle = (status: string) => {
+    switch (status) {
+        case 'Processing':
+            return { bg: '#fff3cd', text: '#856404' };   // Yellow
+        case 'Shipping':
+            return { bg: '#cce5ff', text: '#004085' };   // Blue
+        case 'Arrived':
+            return { bg: '#d4edda', text: '#155724' };   // Green
+        default:
+            return { bg: '#f0f0f0', text: '#666' };
+    }
+};
+
+const OrdersView = () => {
+    const [orders, setOrders] = React.useState<any[]>([]);
+    const [loading, setLoading] = React.useState(true);
+
+    React.useEffect(() => {
+        const fetchOrders = async () => {
+            try {
+                const { getOrders } = await import('@/services/order');
+                const data = await getOrders();
+                setOrders(data);
+            } catch (error) {
+                console.error('Failed to fetch orders:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchOrders();
+    }, []);
+
+    if (loading) {
+        return (
+            <View style={styles.centerContent}>
+                <Text>Loading orders...</Text>
             </View>
-        )}
-    />
-);
+        );
+    }
+
+    if (orders.length === 0) {
+        return (
+            <View style={styles.centerContent}>
+                <FontAwesome name="shopping-bag" size={60} color="#ddd" />
+                <Text style={styles.emptyTitle}>No Orders Yet</Text>
+                <Text style={styles.emptyDesc}>Your order history will appear here after you make a purchase.</Text>
+            </View>
+        );
+    }
+
+    return (
+        <FlatList
+            data={orders}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={{ padding: 20 }}
+            renderItem={({ item }) => {
+                const statusStyle = getStatusStyle(item.calculatedStatus);
+                const items = item.items as any[];
+                const itemNames = items.map((i: any) => i.title).join(', ');
+                const orderDate = new Date(item.createdAt).toLocaleDateString('en-US', {
+                    month: 'short', day: 'numeric', year: 'numeric'
+                });
+
+                return (
+                    <View style={styles.card}>
+                        <View style={[styles.row, { marginBottom: 10 }]}>
+                            <Text style={styles.orderId}>Order #{item.id.slice(-6).toUpperCase()}</Text>
+                            <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
+                                <Text style={[styles.statusText, { color: statusStyle.text }]}>
+                                    {item.calculatedStatus}
+                                </Text>
+                            </View>
+                        </View>
+                        <Text style={styles.orderDate}>{orderDate}</Text>
+                        <Text style={styles.orderItems} numberOfLines={2}>{itemNames}</Text>
+                        <View style={[styles.row, { marginTop: 15, borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 10 }]}>
+                            <Text style={styles.orderTotalLabel}>Total</Text>
+                            <Text style={styles.orderTotal}>${item.total.toFixed(2)}</Text>
+                        </View>
+                    </View>
+                );
+            }}
+        />
+    );
+};
 
 const ReturnsView = () => (
     <View style={styles.centerContent}>

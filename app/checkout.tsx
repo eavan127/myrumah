@@ -48,11 +48,12 @@ export default function CheckoutScreen() {
     const toggleSelf = (value: boolean) => {
         setIsSelf(value);
         if (value) {
-            // Mock auto-fill
+            // Auto-fill with user data (extract username from email)
+            const emailUsername = user?.email?.split('@')[0] || 'Guest';
             setForm({
-                firstName: user?.name?.split(' ')[0] || 'Kimmy',
-                lastName: user?.name?.split(' ')[1] || 'Ho',
-                email: 'kimho@example.com',
+                firstName: emailUsername,
+                lastName: '',
+                email: user?.email || 'guest@example.com',
                 phone: '+60123456789',
                 address: '123 Jalan RoomPlus',
                 city: 'Kuala Lumpur',
@@ -78,19 +79,52 @@ export default function CheckoutScreen() {
         }
     };
 
-    const handlePay = () => {
+    const handlePay = async () => {
         if (!selectedMethod) {
             Alert.alert('Payment Method', 'Please select a payment method');
             return;
         }
-        Alert.alert('Success', 'Payment processed successfully!', [
-            {
-                text: 'OK', onPress: () => {
-                    clearCart();
-                    router.replace('/(tabs)');
+
+        // Build shipping address object
+        const shippingAddress = {
+            fullName: `${form.firstName} ${form.lastName}`,
+            address: form.address,
+            city: form.city,
+            state: form.state,
+            postalCode: form.zip,
+            phone: form.phone,
+            email: form.email
+        };
+
+        // Build payment details object
+        const paymentDetails = {
+            method: selectedMethod,
+            amount: finalTotal,
+            discount: discount,
+            shippingMethod: shippingMethod,
+            voucherCode: voucherCode || null
+        };
+
+        try {
+            // Import the order service
+            const { createOrder } = await import('@/services/order');
+
+            // Call backend to create order
+            await createOrder(shippingAddress, paymentDetails);
+
+            Alert.alert('Success', 'Payment processed successfully! Your order is being prepared.', [
+                {
+                    text: 'Track Order',
+                    onPress: () => {
+                        clearCart();
+                        router.replace('/(tabs)/profile');
+                    }
                 }
-            }
-        ]);
+            ]);
+        } catch (error: any) {
+            console.error('Payment Error:', error);
+            Alert.alert('Payment Failed', error.response?.data?.error || 'Please try again');
+        }
     };
 
     const renderPaymentOption = (method: any) => (

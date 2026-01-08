@@ -395,41 +395,87 @@ app.delete('/api/cart/:productId', authenticateToken, async (req: any, res) => {
 });
 
 // ==================== ORDER ROUTES (Protected) ====================
+
+// Helper to calculate order status based on time elapsed
+const calculateOrderStatus = (createdAt: Date): string => {
+    const now = new Date();
+    const hoursElapsed = (now.getTime() - new Date(createdAt).getTime()) / (1000 * 60 * 60);
+
+    if (hoursElapsed < 24) return "Processing";     // 0-24 hours
+    if (hoursElapsed < 72) return "Shipping";       // 24-72 hours (3 days)
+    return "Arrived";                               // After 3 days
+};
+
+// Create Order from Cart (called when user pays)
 app.post('/api/orders', authenticateToken, async (req: any, res) => {
     try {
+        const userId = String(req.user.userId);
+        const { shippingAddress, paymentDetails } = req.body;
+
+        // Get user's cart
+        const cart = await prisma.cart.findFirst({ where: { userId } });
+        if (!cart || (cart.items as any[]).length === 0) {
+            return res.status(400).json({ error: 'Cart is empty' });
+        }
+
+        // Create order with cart items and payment details
         const order = await prisma.order.create({
             data: {
-                ...req.body,
-                userId: String(req.user.userId)
+                userId,
+                items: cart.items as any,  // Cast to satisfy Prisma's JSON type
+                total: cart.total,
+                status: 'pending',
+                shippingAddress: shippingAddress || undefined,
+                paymentDetails: paymentDetails || undefined
             }
         });
 
-        // Optional: Clear cart after order
-        const userId = String(req.user.userId);
-        const cart = await prisma.cart.findFirst({ where: { userId } });
-        if (cart) {
-            await prisma.cart.update({
-                where: { id: cart.id },
-                data: { items: [], total: 0 }
-            });
-        }
+        // Clear cart after successful order
+        await prisma.cart.update({
+            where: { id: cart.id },
+            data: { items: [], total: 0 }
+        });
+        // Resets the cart’s items to an empty array.
 
-        res.json(order);
+        // Return order with calculated status
+        res.json({
+            ...order,
+            calculatedStatus: calculateOrderStatus(order.createdAt)
+        });
+        //Object spread operator.
+        //Copies all enumerable properties from the order object into the response.
+
     } catch (error) {
+        console.error('Create Order Error:', error);
         res.status(500).json({ error: 'Failed to create order' });
     }
 });
 
+// Get User's Orders with calculated status
 app.get('/api/orders', authenticateToken, async (req: any, res) => {
     try {
         const orders = await prisma.order.findMany({
-            where: { userId: String(req.user.userId) }
+            where: { userId: String(req.user.userId) },
+            orderBy: { createdAt: 'desc' }  // Most recent first
         });
-        res.json(orders);
+
+        // Add calculated status to each order
+        const ordersWithStatus = orders.map((order: any) => ({
+            //Iterates through each order returned from the database.
+            ...order,
+            //have original properties
+            //then below here is to add the new property
+            calculatedStatus: calculateOrderStatus(order.createdAt)
+        }));
+
+        res.json(ordersWithStatus);
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch orders' });
     }
 });
+// This endpoint retrieves all orders belonging to the authenticated user, 
+// sorted by most recent first, and returns each order with an additional calculated (dynamic) status 
+// based on its creation time.
 
 app.listen(PORT, () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);

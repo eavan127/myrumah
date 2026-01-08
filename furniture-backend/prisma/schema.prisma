@@ -43,6 +43,7 @@ model Order {
   total           Float
   status          String   @default("pending")
   shippingAddress Json?
+  paymentDetails  Json?    // Stores payment method, last 4 digits, etc.
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
